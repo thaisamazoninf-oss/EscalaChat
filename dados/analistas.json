@@ -1,0 +1,142 @@
+[
+    {
+        "nome": "Edson Davi",
+        "entrada": "06:00",
+        "saida": "12:00",
+        "min_semana": 2,
+        "max_semana": 2,
+        "ativo": true,
+        "ferias": false,
+        "indisponivel": [
+            ""
+        ]
+    },
+    {
+        "nome": "Ramon Leal",
+        "entrada": "08:00",
+        "saida": "14:00",
+        "min_semana": 2,
+        "max_semana": 2,
+        "ativo": true,
+        "ferias": false,
+        "indisponivel": [
+            ""
+        ]
+    },
+    {
+        "nome": "Elian Gomes",
+        "entrada": "10:00",
+        "saida": "16:00",
+        "min_semana": 2,
+        "max_semana": 3,
+        "ativo": true,
+        "ferias": false,
+        "indisponivel": [
+            ""
+        ]
+    },
+    {
+        "nome": "Jayme Saraiva",
+        "entrada": "10:00",
+        "saida": "16:00",
+        "min_semana": 1,
+        "max_semana": 1,
+        "ativo": true,
+        "ferias": false,
+        "indisponivel": [
+            ""
+        ]
+    },
+    {
+        "nome": "Ana Lima",
+        "entrada": "12:00",
+        "saida": "18:00",
+        "min_semana": 2,
+        "max_semana": 2,
+        "ativo": true,
+        "ferias": false,
+        "indisponivel": [
+            ""
+        ]
+    },
+    {
+        "nome": "Yslanson",
+        "entrada": "08:00",
+        "saida": "14:00",
+        "min_semana": 2,
+        "max_semana": 2,
+        "ativo": true,
+        "ferias": false,
+        "indisponivel": []
+    },
+    {
+        "nome": "Allan",
+        "entrada": "08:00",
+        "saida": "14:00",
+        "min_semana": 2,
+        "max_semana": 2,
+        "ativo": true,
+        "ferias": false,
+        "indisponivel": [
+            ""
+        ]
+    },
+    {
+        "nome": "Alvaro",
+        "entrada": "14:00",
+        "saida": "20:00",
+        "min_semana": 2,
+        "max_semana": 3,
+        "ativo": true,
+        "ferias": false,
+        "indisponivel": [
+            ""
+        ]
+    },
+    {
+        "nome": "Bruno",
+        "entrada": "11:00",
+        "saida": "17:00",
+        "min_semana": 2,
+        "max_semana": 3,
+        "ativo": true,
+        "ferias": false,
+        "indisponivel": [
+            ""
+        ]
+    },
+    {
+        "nome": "Diogo",
+        "entrada": "10:00",
+        "saida": "16:00",
+        "min_semana": 2,
+        "max_semana": 3,
+        "ativo": true,
+        "ferias": false,
+        "indisponivel": [
+            ""
+        ]
+    },
+    {
+        "nome": "Jefferson",
+        "entrada": "12:00",
+        "saida": "18:00",
+        "min_semana": 2,
+        "max_semana": 2,
+        "ativo": true,
+        "ferias": false,
+        "indisponivel": []
+    },
+    {
+        "nome": "Marlon Castro",
+        "entrada": "08:00",
+        "saida": "14:00",
+        "min_semana": 2,
+        "max_semana": 2,
+        "ativo": true,
+        "ferias": false,
+        "indisponivel": [
+            "12:00–14:00"
+        ]
+    }
+]
