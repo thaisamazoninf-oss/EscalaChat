@@ -1,70 +1,40 @@
 [
     {
-        "nome": "Edson Davi",
+        "nome": "Ana",
         "entrada": "06:00",
         "saida": "12:00",
         "min_semana": 2,
         "max_semana": 2,
         "ativo": true,
         "ferias": false,
-        "indisponivel": [
-            ""
-        ]
+        "indisponivel": []
     },
     {
-        "nome": "Ramon Leal",
-        "entrada": "08:00",
-        "saida": "14:00",
-        "min_semana": 2,
-        "max_semana": 2,
-        "ativo": true,
-        "ferias": false,
-        "indisponivel": [
-            ""
-        ]
-    },
-    {
-        "nome": "Elian Gomes",
+        "nome": "Elian",
         "entrada": "10:00",
         "saida": "16:00",
         "min_semana": 2,
         "max_semana": 3,
         "ativo": true,
         "ferias": false,
-        "indisponivel": [
-            ""
-        ]
+        "indisponivel": []
     },
     {
-        "nome": "Jayme Saraiva",
+        "nome": "Jayme",
         "entrada": "10:00",
         "saida": "16:00",
-        "min_semana": 1,
-        "max_semana": 1,
-        "ativo": true,
-        "ferias": false,
-        "indisponivel": [
-            ""
-        ]
-    },
-    {
-        "nome": "Ana Lima",
-        "entrada": "12:00",
-        "saida": "18:00",
         "min_semana": 2,
         "max_semana": 2,
         "ativo": true,
         "ferias": false,
-        "indisponivel": [
-            ""
-        ]
+        "indisponivel": []
     },
     {
         "nome": "Yslanson",
         "entrada": "08:00",
         "saida": "14:00",
         "min_semana": 2,
-        "max_semana": 2,
+        "max_semana": 3,
         "ativo": true,
         "ferias": false,
         "indisponivel": []
@@ -74,12 +44,10 @@
         "entrada": "08:00",
         "saida": "14:00",
         "min_semana": 2,
-        "max_semana": 2,
+        "max_semana": 3,
         "ativo": true,
         "ferias": false,
-        "indisponivel": [
-            ""
-        ]
+        "indisponivel": []
     },
     {
         "nome": "Alvaro",
@@ -89,21 +57,17 @@
         "max_semana": 3,
         "ativo": true,
         "ferias": false,
-        "indisponivel": [
-            ""
-        ]
+        "indisponivel": []
     },
     {
         "nome": "Bruno",
         "entrada": "11:00",
         "saida": "17:00",
         "min_semana": 2,
-        "max_semana": 3,
+        "max_semana": 2,
         "ativo": true,
         "ferias": false,
-        "indisponivel": [
-            ""
-        ]
+        "indisponivel": []
     },
     {
         "nome": "Diogo",
@@ -113,9 +77,7 @@
         "max_semana": 3,
         "ativo": true,
         "ferias": false,
-        "indisponivel": [
-            ""
-        ]
+        "indisponivel": []
     },
     {
         "nome": "Jefferson",
@@ -124,19 +86,42 @@
         "min_semana": 2,
         "max_semana": 2,
         "ativo": true,
+        "ferias": true,
+        "indisponivel": []
+    },
+    {
+        "nome": "Marlon",
+        "entrada": "08:00",
+        "saida": "14:00",
+        "min_semana": 2,
+        "max_semana": 3,
+        "ativo": true,
+        "ferias": true,
+        "indisponivel": [
+            "12:00–14:00"
+        ]
+    },
+    {
+        "nome": "Pedro",
+        "entrada": "13:00",
+        "saida": "19:00",
+        "min_semana": 2,
+        "max_semana": 2,
+        "ativo": true,
         "ferias": false,
         "indisponivel": []
     },
     {
-        "nome": "Marlon Castro",
-        "entrada": "08:00",
-        "saida": "14:00",
+        "nome": "Vinicius",
+        "entrada": "13:00",
+        "saida": "19:00",
         "min_semana": 2,
         "max_semana": 2,
         "ativo": true,
         "ferias": false,
         "indisponivel": [
-            "12:00–14:00"
+            "12:00–14:00",
+            "14:00–16:00"
         ]
     }
 ]

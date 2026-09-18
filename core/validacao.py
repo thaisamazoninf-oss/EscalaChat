@@ -27,6 +27,10 @@ class ValidadorEscala:
         )
 
         erros.extend(
+            self.validar_dias_alternados(escala)
+        )
+
+        erros.extend(
             self.validar_turnos(escala)
         )
 
@@ -104,6 +108,55 @@ class ValidadorEscala:
                     )
 
         return erros
+
+    # ==========================================================
+    # 2.5. DIAS ALTERNADOS
+    # ==========================================================
+    def validar_dias_alternados(self, escala):
+
+        erros = []
+
+        #Guarda os dias em que cada analista aparece
+        dias_por_analista = {}
+
+        for (dia, inicio, fim), nome in escala.items():
+
+            if nome not in dias_por_analista:
+                dias_por_analista[nome] = []
+
+            if dia not in dias_por_analista[nome]:
+                dias_por_analista[nome].append(dia)
+
+        # Verifica dias consecutivos
+        for nome, dias_trabalhados in dias_por_analista.items():
+
+            #Ordem os dias conforme a ordem de self.dias
+            indices = []
+
+            for dia in dias_trabalhados:
+
+                if dia in self.dias:
+                    indices.append(
+                        self.dias.index(dia)
+                    )
+
+            indices.sort()
+
+            for i in range(len(indices) - 1):
+
+                dia_atual = indices[i]
+                proximo_dia = indices[i + 1]
+
+                if proximo_dia == dia_atual + 1:
+
+                    erros.append(
+                        f"{nome} foi escalado em dias consecutivos"
+                        f"{self.dias[dia_atual]} e "
+                        f"{self.dias[proximo_dia]}."
+                    )
+
+        return erros
+    
 
     # ==========================================================
     # 3. VERIFICAR TURNO

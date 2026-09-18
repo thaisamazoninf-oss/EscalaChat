@@ -1,7 +1,30 @@
-#Recebe o analista e monta a escala
+# ==============================================================
+# Recebe os analistas e monta a escala
 # core/gerador_escala.py
+# ==============================================================
 
 import random
+import time
+from collections import Counter
+
+# ==============================================================
+# GERADOR DE ESCALA
+# core/gerador_escala.py
+#
+# Estratégia:
+# - Backtracking inteligente
+# - Escolhe primeiro as posições com menos candidatos
+# - Respeita horários
+# - Respeita indisponibilidade
+# - Respeita mínimo e máximo semanal
+# - Não repete analista no mesmo dia
+# - Fase 1: tenta evitar dias consecutivos
+# - Fase 2: permite dias consecutivos
+# - Limite de tempo para evitar travamentos
+# ==============================================================
+
+import random
+import time
 from collections import Counter
 
 
@@ -13,68 +36,232 @@ class GeradorEscala:
         self.dias = dias
         self.horarios = horarios
 
-        # Somente analistas disponíveis
+        # ------------------------------------------------------
+        # ANALISTAS DISPONÍVEIS
+        # ------------------------------------------------------
+
         self.analistas_disponiveis = [
             analista
             for analista in analistas
-            if analista is not None
-            and isinstance(analista, dict)
-            and analista.get("ativo", True)
-            and not analista.get("ferias", False)
+            if (
+                analista is not None
+                and isinstance(analista, dict)
+                and analista.get("ativo", True)
+                and not analista.get("ferias", False)
+            )
         ]
+
+        # ------------------------------------------------------
+        # CONTROLE DE TEMPO
+        # ------------------------------------------------------
+
+        self.inicio_geracao = None
+        self.limite_segundos = 5
+
+        # ------------------------------------------------------
+        # CONTROLE DE NÓS DO BACKTRACKING
+        #
+        # Evita uma quantidade absurda de combinações.
+        # ------------------------------------------------------
+
+        self.nos_visitados = 0
+        self.limite_nos = 100000
+
+        # ------------------------------------------------------
+        # FASE 1:
+        # False = não permite consecutivos
+        #
+        # FASE 2:
+        # True = permite consecutivos
+        # ------------------------------------------------------
+
+        self.permitir_consecutivos = False
 
     # ==========================================================
     # MÉTODO PRINCIPAL
     # ==========================================================
 
-    def gerar(self, tentativas=5000):
+    def gerar(self, tentativas=500, limite_segundos=5):
 
         if not self.analistas_disponiveis:
+
+            print("Nenhum analista disponível.")
+
             return None
 
-        # Verifica antes se existe quantidade suficiente
-        # de analistas para tentar montar a escala.
+        self.limite_segundos = limite_segundos
+        self.inicio_geracao = time.time()
+
+        # ------------------------------------------------------
+        # VERIFICA VIABILIDADE
+        # ------------------------------------------------------
+
         if not self.verificar_viabilidade():
-            return None
 
-        # Cria todas as posições da escala
-        posicoes = self.criar_posicoes()
-
-        # Tenta gerar várias combinações
-        for _ in range(tentativas):
-
-            escala = {}
-
-            quantidade_semanal = Counter()
-
-            dias_utilizados = {
-                dia: set()
-                for dia in self.dias
-            }
-
-            # Em cada tentativa a ordem dos horários
-            # pode mudar.
-            ordem = posicoes.copy()
-
-            random.shuffle(ordem)
-
-            sucesso = self.preencher_escala(
-                ordem,
-                0,
-                escala,
-                quantidade_semanal,
-                dias_utilizados
+            print()
+            print(
+                "Não foi possível gerar a escala: "
+                "os critérios informados são inviáveis."
             )
 
-            if sucesso:
+            return None
 
-                return escala
+        # ======================================================
+        # FASE 1
+        # ======================================================
+
+        self.permitir_consecutivos = False
+        self.nos_visitados = 0
+
+        print()
+        print("==========================================")
+        print("FASE 1")
+        print("Tentando gerar sem dias consecutivos...")
+        print("==========================================")
+
+        escala = self.tentar_gerar()
+
+        if escala is not None:
+
+            print()
+            print("==========================================")
+            print("ESCALA GERADA")
+            print("Sem dias consecutivos.")
+            print(
+                f"Nós analisados: {self.nos_visitados}"
+            )
+            print("==========================================")
+
+            return escala
+
+        # ------------------------------------------------------
+        # SE O TEMPO ACABOU, NÃO TENTA FASE 2
+        # ------------------------------------------------------
+
+        if self.tempo_esgotado():
+
+            print()
+            print(
+                f"Geração interrompida após "
+                f"{limite_segundos} segundos."
+            )
+
+            return None
+
+        # ======================================================
+        # FASE 2
+        # ======================================================
+
+        self.permitir_consecutivos = True
+        self.nos_visitados = 0
+
+        print()
+        print("==========================================")
+        print("FASE 2")
+        print("Não foi possível gerar sem consecutivos.")
+        print(
+            "Tentando permitir dias consecutivos..."
+        )
+        print("==========================================")
+
+        escala = self.tentar_gerar()
+
+        if escala is not None:
+
+            print()
+            print("==========================================")
+            print("ESCALA GERADA")
+            print("Permitindo dias consecutivos.")
+            print(
+                f"Nós analisados: {self.nos_visitados}"
+            )
+            print("==========================================")
+
+            return escala
+
+        print()
+        print("==========================================")
+        print("FALHA")
+        print(
+            "Não foi possível gerar uma escala válida."
+        )
+        print(
+            f"Nós analisados: {self.nos_visitados}"
+        )
+        print("==========================================")
 
         return None
 
     # ==========================================================
-    # CRIAR POSIÇÕES
+    # TENTAR GERAR
     # ==========================================================
+
+    def tentar_gerar(self):
+
+        # ------------------------------------------------------
+        # POSIÇÕES
+        # ------------------------------------------------------
+
+        posicoes = self.criar_posicoes()
+
+        if not posicoes:
+
+            return None
+
+        # ------------------------------------------------------
+        # ESTRUTURAS
+        # ------------------------------------------------------
+
+        escala = {}
+
+        quantidade_semanal = Counter()
+
+        dias_utilizados = {
+            dia: set()
+            for dia in self.dias
+        }
+
+        dias_por_analista = {
+            analista["nome"]: set()
+            for analista in self.analistas_disponiveis
+        }
+
+        # ------------------------------------------------------
+        # BACKTRACKING
+        # ------------------------------------------------------
+
+        sucesso = self.preencher_escala(
+            posicoes,
+            escala,
+            quantidade_semanal,
+            dias_utilizados,
+            dias_por_analista
+        )
+
+        if sucesso:
+
+            return escala
+
+        return None
+
+    # ==========================================================
+    # CONTROLE DE TEMPO
+    # ==========================================================
+
+    def tempo_esgotado(self):
+
+        if self.inicio_geracao is None:
+
+            return False
+
+        return (
+            time.time() - self.inicio_geracao
+            >= self.limite_segundos
+        )
+
+    # ==========================================================
+    # CRIAR POSIÇÕES
+    # ==============================================================
 
     def criar_posicoes(self):
 
@@ -91,46 +278,120 @@ class GeradorEscala:
         return posicoes
 
     # ==========================================================
-    # BACKTRACKING
+    # BACKTRACKING INTELIGENTE
+    #
+    # Escolhe sempre a posição com MENOS candidatos.
+    #
+    # Isso é muito mais eficiente do que embaralhar
+    # todas as posições e tentar aleatoriamente.
     # ==========================================================
 
     def preencher_escala(
         self,
         posicoes,
-        indice,
         escala,
         quantidade_semanal,
-        dias_utilizados
+        dias_utilizados,
+        dias_por_analista
     ):
 
-        # Todas as posições foram preenchidas
-        if indice >= len(posicoes):
+        # ------------------------------------------------------
+        # CONTROLE DE TEMPO
+        # ------------------------------------------------------
+
+        if self.tempo_esgotado():
+
+            return False
+
+        # ------------------------------------------------------
+        # CONTROLE DE NÓS
+        # ------------------------------------------------------
+
+        self.nos_visitados += 1
+
+        if self.nos_visitados > self.limite_nos:
+
+            return False
+
+        # ------------------------------------------------------
+        # TODAS AS POSIÇÕES PREENCHIDAS
+        # ------------------------------------------------------
+
+        if not posicoes:
 
             return self.verificar_minimos(
                 quantidade_semanal
             )
 
-        # Posição atual
-        dia, inicio, fim = posicoes[indice]
+        # ======================================================
+        # ESCOLHER A POSIÇÃO MAIS DIFÍCIL
+        # ======================================================
 
-        # Descobre quem pode trabalhar neste horário
-        candidatos = self.obter_candidatos(
-            dia,
-            inicio,
-            fim,
-            quantidade_semanal,
-            dias_utilizados
-        )
+        melhor_posicao = None
+        melhores_candidatos = None
 
-        # Prioriza quem ainda precisa atingir
-        # o mínimo semanal.
+        for posicao in posicoes:
+
+            dia, inicio, fim = posicao
+
+            candidatos = self.obter_candidatos(
+                dia,
+                inicio,
+                fim,
+                quantidade_semanal,
+                dias_utilizados,
+                dias_por_analista
+            )
+
+            # --------------------------------------------------
+            # ZERO CANDIDATOS
+            #
+            # Não adianta continuar.
+            # --------------------------------------------------
+
+            if not candidatos:
+
+                return False
+
+            # --------------------------------------------------
+            # MENOR DOMÍNIO
+            # --------------------------------------------------
+
+            if (
+                melhores_candidatos is None
+                or len(candidatos)
+                < len(melhores_candidatos)
+            ):
+
+                melhor_posicao = posicao
+                melhores_candidatos = candidatos
+
+                # --------------------------------------------------
+                # Se encontrou apenas 1 candidato, dificilmente
+                # outra posição será mais restritiva.
+                # --------------------------------------------------
+
+                if len(candidatos) == 1:
+
+                    break
+
+        # ======================================================
+        # POSIÇÃO ESCOLHIDA
+        # ======================================================
+
+        dia, inicio, fim = melhor_posicao
+
+        candidatos = melhores_candidatos
+
+        # ------------------------------------------------------
+        # PRIORIZA QUEM AINDA PRECISA DO MÍNIMO
+        # ------------------------------------------------------
+
         candidatos.sort(
             key=lambda analista: (
-                quantidade_semanal[
-                    analista["nome"]
-                ] >= analista.get(
-                    "min_semana",
-                    2
+                -self.quantidade_necessaria(
+                    analista,
+                    quantidade_semanal
                 ),
 
                 quantidade_semanal[
@@ -139,56 +400,118 @@ class GeradorEscala:
             )
         )
 
-        # Mistura candidatos que possuem
-        # a mesma prioridade.
+        # ------------------------------------------------------
+        # EMBARALHA EMPATES
+        # ------------------------------------------------------
+
         random.shuffle(candidatos)
+
+        # ------------------------------------------------------
+        # TESTAR CANDIDATOS
+        # ------------------------------------------------------
 
         for analista in candidatos:
 
+            if self.tempo_esgotado():
+
+                return False
+
+            if self.nos_visitados > self.limite_nos:
+
+                return False
+
             nome = analista["nome"]
 
-            # Coloca o analista na escala
-            escala[
-                (dia, inicio, fim)
-            ] = nome
+            chave = (
+                dia,
+                inicio,
+                fim
+            )
+
+            # --------------------------------------------------
+            # COLOCA
+            # --------------------------------------------------
+
+            escala[chave] = nome
 
             quantidade_semanal[nome] += 1
 
             dias_utilizados[dia].add(nome)
 
-            # Verifica se ainda é possível atingir
-            # os mínimos restantes.
-            if self.ainda_eh_possivel(
-                posicoes,
-                indice + 1,
+            dias_por_analista[nome].add(dia)
+
+            # --------------------------------------------------
+            # REMOVE POSIÇÃO
+            # --------------------------------------------------
+
+            novas_posicoes = [
+                pos
+                for pos in posicoes
+                if pos != melhor_posicao
+            ]
+
+            # --------------------------------------------------
+            # VERIFICA POSSIBILIDADE
+            # --------------------------------------------------
+
+            possivel = self.ainda_eh_possivel(
+                novas_posicoes,
                 quantidade_semanal,
-                dias_utilizados
-            ):
+                dias_utilizados,
+                dias_por_analista
+            )
+
+            if possivel:
 
                 sucesso = self.preencher_escala(
-                    posicoes,
-                    indice + 1,
+                    novas_posicoes,
                     escala,
                     quantidade_semanal,
-                    dias_utilizados
+                    dias_utilizados,
+                    dias_por_analista
                 )
 
                 if sucesso:
+
                     return True
 
             # --------------------------------------------------
-            # DESFAZ A TENTATIVA
+            # DESFAZER
             # --------------------------------------------------
 
-            del escala[
-                (dia, inicio, fim)
-            ]
+            del escala[chave]
 
             quantidade_semanal[nome] -= 1
 
             dias_utilizados[dia].remove(nome)
 
+            dias_por_analista[nome].remove(dia)
+
         return False
+
+    # ==========================================================
+    # QUANTO O ANALISTA AINDA PRECISA
+    # ==========================================================
+
+    def quantidade_necessaria(
+        self,
+        analista,
+        quantidade_semanal
+    ):
+
+        nome = analista["nome"]
+
+        minimo = analista.get(
+            "min_semana",
+            2
+        )
+
+        atual = quantidade_semanal[nome]
+
+        return max(
+            0,
+            minimo - atual
+        )
 
     # ==========================================================
     # OBTER CANDIDATOS
@@ -200,7 +523,8 @@ class GeradorEscala:
         inicio,
         fim,
         quantidade_semanal,
-        dias_utilizados
+        dias_utilizados,
+        dias_por_analista
     ):
 
         candidatos = []
@@ -209,34 +533,56 @@ class GeradorEscala:
 
             nome = analista["nome"]
 
-            # ----------------------------------------------
-            # Não pode aparecer duas vezes no mesmo dia
-            # ----------------------------------------------
+            # --------------------------------------------------
+            # NÃO PODE REPETIR NO MESMO DIA
+            # --------------------------------------------------
 
             if nome in dias_utilizados[dia]:
+
                 continue
 
-            # ----------------------------------------------
-            # Verifica se o horário está dentro do turno
-            # ----------------------------------------------
+            # --------------------------------------------------
+            # NÃO PODE TRABALHAR DIA CONSECUTIVO
+            # NA FASE 1
+            # --------------------------------------------------
+
+            if not self.permitir_consecutivos:
+
+                if self.trabalha_dia_anterior(
+                    nome,
+                    dia,
+                    dias_por_analista
+                ):
+
+                    continue
+
+            # --------------------------------------------------
+            # HORÁRIO
+            # --------------------------------------------------
 
             if not self.horario_compativel(
                 analista,
                 inicio,
                 fim
             ):
+
                 continue
+
+            # --------------------------------------------------
+            # INDISPONIBILIDADE
+            # --------------------------------------------------
 
             if not self.horario_disponivel(
                 analista,
                 inicio,
                 fim
             ):
+
                 continue
 
-            # ----------------------------------------------
-            # Verifica limite semanal
-            # ----------------------------------------------
+            # --------------------------------------------------
+            # MÁXIMO SEMANAL
+            # --------------------------------------------------
 
             maximo = analista.get(
                 "max_semana",
@@ -244,16 +590,122 @@ class GeradorEscala:
             )
 
             if quantidade_semanal[nome] >= maximo:
+
                 continue
 
-            candidatos.append(
-                analista
-            )
+            candidatos.append(analista)
 
         return candidatos
 
     # ==========================================================
-    # VERIFICAR DISPONIBILIDADE DE HORÁRIO
+    # VERIFICAR DIA ANTERIOR
+    #
+    # Importante:
+    # Na construção da escala só precisamos verificar o dia
+    # anterior que já foi atribuído.
+    # ==========================================================
+
+    def trabalha_dia_anterior(
+        self,
+        nome,
+        dia,
+        dias_por_analista
+    ):
+
+        indice = self.obter_indice_dia(
+            dia
+        )
+
+        if indice is None:
+
+            return False
+
+        if indice == 0:
+
+            return False
+
+        dia_anterior = self.dias[
+            indice - 1
+        ]
+
+        return (
+            dia_anterior
+            in dias_por_analista[nome]
+        )
+
+    # ==========================================================
+    # VERIFICAR CONSECUTIVO
+    # ==========================================================
+
+    def trabalha_dia_consecutivo(
+        self,
+        nome,
+        dia,
+        dias_por_analista
+    ):
+
+        dias_trabalhados = dias_por_analista[
+            nome
+        ]
+
+        indice_atual = self.obter_indice_dia(
+            dia
+        )
+
+        if indice_atual is None:
+
+            return False
+
+        # ------------------------------------------------------
+        # ANTERIOR
+        # ------------------------------------------------------
+
+        if indice_atual > 0:
+
+            anterior = self.dias[
+                indice_atual - 1
+            ]
+
+            if anterior in dias_trabalhados:
+
+                return True
+
+        # ------------------------------------------------------
+        # POSTERIOR
+        # ------------------------------------------------------
+
+        if indice_atual < len(self.dias) - 1:
+
+            posterior = self.dias[
+                indice_atual + 1
+            ]
+
+            if posterior in dias_trabalhados:
+
+                return True
+
+        return False
+
+    # ==========================================================
+    # ÍNDICE DO DIA
+    # ==========================================================
+
+    def obter_indice_dia(self, dia):
+
+        try:
+
+            return self.dias.index(
+                dia
+            )
+
+        except ValueError:
+
+            return None
+
+    # ==========================================================
+    # HORÁRIO DISPONÍVEL
+    # ==========================================================
+
     def horario_disponivel(
         self,
         analista,
@@ -261,17 +713,34 @@ class GeradorEscala:
         fim
     ):
 
-        bloqueio = analista.get(
+        bloqueios = analista.get(
             "indisponivel",
             []
         )
 
-        horario = f"{inicio}-{fim}"
+        horario_atual = (
+            f"{inicio}-{fim}"
+            .replace(" ", "")
+        )
 
-        return horario not in bloqueio
+        for bloqueio in bloqueios:
+
+            bloqueio_normalizado = (
+                str(bloqueio)
+                .replace(" ", "")
+            )
+
+            if (
+                horario_atual
+                == bloqueio_normalizado
+            ):
+
+                return False
+
+        return True
 
     # ==========================================================
-    # VERIFICAR HORÁRIO
+    # HORÁRIO COMPATÍVEL
     # ==========================================================
 
     def horario_compativel(
@@ -281,21 +750,31 @@ class GeradorEscala:
         fim
     ):
 
-        entrada = self.converter_hora(
-            analista["entrada"]
-        )
+        try:
 
-        saida = self.converter_hora(
-            analista["saida"]
-        )
+            entrada = self.converter_hora(
+                analista["entrada"]
+            )
 
-        inicio_atendimento = self.converter_hora(
-            inicio
-        )
+            saida = self.converter_hora(
+                analista["saida"]
+            )
 
-        fim_atendimento = self.converter_hora(
-            fim
-        )
+            inicio_atendimento = self.converter_hora(
+                inicio
+            )
+
+            fim_atendimento = self.converter_hora(
+                fim
+            )
+
+        except (
+            KeyError,
+            TypeError,
+            ValueError
+        ):
+
+            return False
 
         return (
             inicio_atendimento >= entrada
@@ -321,7 +800,10 @@ class GeradorEscala:
                 2
             )
 
-            if quantidade_semanal[nome] < minimo:
+            if (
+                quantidade_semanal[nome]
+                < minimo
+            ):
 
                 return False
 
@@ -334,12 +816,18 @@ class GeradorEscala:
     def ainda_eh_possivel(
         self,
         posicoes,
-        indice,
         quantidade_semanal,
-        dias_utilizados
+        dias_utilizados,
+        dias_por_analista
     ):
 
-        restantes = posicoes[indice:]
+        if self.tempo_esgotado():
+
+            return False
+
+        # ======================================================
+        # PARA CADA ANALISTA
+        # ======================================================
 
         for analista in self.analistas_disponiveis:
 
@@ -350,47 +838,163 @@ class GeradorEscala:
                 2
             )
 
+            maximo = analista.get(
+                "max_semana",
+                2
+            )
+
             atual = quantidade_semanal[nome]
+
+            # --------------------------------------------------
+            # PASSOU DO MÁXIMO
+            # --------------------------------------------------
+
+            if atual > maximo:
+
+                return False
 
             falta = minimo - atual
 
-            # Já atingiu o mínimo
             if falta <= 0:
+
                 continue
 
-            # Quantos horários futuros ele poderia ocupar?
-            oportunidades = 0
+            # --------------------------------------------------
+            # DIAS QUE AINDA PODE TRABALHAR
+            # --------------------------------------------------
 
-            for dia, inicio, fim in restantes:
+            dias_possiveis = set()
 
-                # Não pode repetir no mesmo dia
+            for dia, inicio, fim in posicoes:
+
+                # ----------------------------------------------
+                # JÁ TRABALHOU NESSE DIA
+                # ----------------------------------------------
+
                 if nome in dias_utilizados[dia]:
+
                     continue
 
-                # Precisa caber no turno
+                # ----------------------------------------------
+                # CONSECUTIVO
+                # ----------------------------------------------
+
+                if not self.permitir_consecutivos:
+
+                    if self.dia_seria_consecutivo(
+                        dia,
+                        dias_por_analista[nome]
+                    ):
+
+                        continue
+
+                # ----------------------------------------------
+                # HORÁRIO
+                # ----------------------------------------------
+
                 if not self.horario_compativel(
                     analista,
                     inicio,
                     fim
                 ):
+
                     continue
+
+                # ----------------------------------------------
+                # INDISPONIBILIDADE
+                # ----------------------------------------------
 
                 if not self.horario_disponivel(
                     analista,
                     inicio,
                     fim
                 ):
+
                     continue
 
-                oportunidades += 1
+                dias_possiveis.add(dia)
 
-            # Não existem posições suficientes
-            # para atingir o mínimo.
-            if oportunidades < falta:
+            # --------------------------------------------------
+            # NÃO HÁ DIAS SUFICIENTES
+            # --------------------------------------------------
+
+            if len(dias_possiveis) < falta:
 
                 return False
 
+        # ======================================================
+        # CAPACIDADE TOTAL DAS POSIÇÕES RESTANTES
+        # ======================================================
+
+        capacidade_restante = 0
+
+        for analista in self.analistas_disponiveis:
+
+            nome = analista["nome"]
+
+            maximo = analista.get(
+                "max_semana",
+                2
+            )
+
+            capacidade_restante += (
+                maximo
+                - quantidade_semanal[nome]
+            )
+
+        if capacidade_restante < len(posicoes):
+
+            return False
+
         return True
+
+    # ==========================================================
+    # TESTAR SE O DIA SERIA CONSECUTIVO
+    # ==========================================================
+
+    def dia_seria_consecutivo(
+        self,
+        dia,
+        dias_trabalhados
+    ):
+
+        indice = self.obter_indice_dia(
+            dia
+        )
+
+        if indice is None:
+
+            return False
+
+        # ------------------------------------------------------
+        # DIA ANTERIOR
+        # ------------------------------------------------------
+
+        if indice > 0:
+
+            anterior = self.dias[
+                indice - 1
+            ]
+
+            if anterior in dias_trabalhados:
+
+                return True
+
+        # ------------------------------------------------------
+        # DIA POSTERIOR
+        # ------------------------------------------------------
+
+        if indice < len(self.dias) - 1:
+
+            posterior = self.dias[
+                indice + 1
+            ]
+
+            if posterior in dias_trabalhados:
+
+                return True
+
+        return False
 
     # ==========================================================
     # VERIFICAR VIABILIDADE INICIAL
@@ -404,8 +1008,12 @@ class GeradorEscala:
             len(self.horarios)
         )
 
-        # Soma dos mínimos
+        # ======================================================
+        # SOMA DOS MÍNIMOS
+        # ======================================================
+
         minimo_total = 0
+        maximo_total = 0
 
         for analista in self.analistas_disponiveis:
 
@@ -414,56 +1022,278 @@ class GeradorEscala:
                 2
             )
 
-        # Não pode exigir mais atendimentos
-        # do que existem posições.
+            maximo_total += analista.get(
+                "max_semana",
+                2
+            )
+
+        # ------------------------------------------------------
+        # MÍNIMO MAIOR QUE POSIÇÕES
+        # ------------------------------------------------------
+
         if minimo_total > quantidade_posicoes:
+
+            print()
+            print("==========================================")
+            print("ESCALA INVIÁVEL")
+            print(
+                f"Posições disponíveis: "
+                f"{quantidade_posicoes}"
+            )
+            print(
+                f"Mínimo necessário: "
+                f"{minimo_total}"
+            )
+            print(
+                "A soma dos mínimos é maior que "
+                "o número de posições."
+            )
+            print("==========================================")
 
             return False
 
-        # Cada analista precisa ter pelo menos
-        # uma quantidade de oportunidades suficiente
-        # para alcançar seu mínimo.
+        # ------------------------------------------------------
+        # MÁXIMO MENOR QUE POSIÇÕES
+        # ------------------------------------------------------
+
+        if maximo_total < quantidade_posicoes:
+
+            print()
+            print("==========================================")
+            print("ESCALA INVIÁVEL")
+            print(
+                f"Posições necessárias: "
+                f"{quantidade_posicoes}"
+            )
+            print(
+                f"Capacidade máxima: "
+                f"{maximo_total}"
+            )
+            print(
+                "A soma dos máximos não é suficiente "
+                "para preencher todas as posições."
+            )
+            print("==========================================")
+
+            return False
+
+        # ======================================================
+        # VERIFICA CADA ANALISTA
+        # ======================================================
+
         for analista in self.analistas_disponiveis:
+
+            nome = analista["nome"]
 
             minimo = analista.get(
                 "min_semana",
                 2
             )
 
-            oportunidades = 0
+            maximo = analista.get(
+                "max_semana",
+                2
+            )
 
-            for dia in self.dias:
+            # --------------------------------------------------
+            # MÍNIMO > MÁXIMO
+            # --------------------------------------------------
 
-                horarios_dia = 0
+            if minimo > maximo:
 
-                for inicio, fim in self.horarios:
-
-                    if (
-                        self.horario_compativel(
-                            analista,
-                            inicio,
-                            fim
-                        )
-                        and
-                        self.horario_disponivel(
-                            analista,
-                            inicio,
-                            fim
-                        )
-                    ):
-                        horarios_dia += 1
-
-                # Como o analista só pode aparecer uma vez
-                # por dia, no máximo 1 oportunidade conta
-                # para aquele dia.
-                if horarios_dia > 0:
-                    oportunidades += 1
-
-            if oportunidades < minimo:
+                print()
+                print("==========================================")
+                print("ESCALA INVIÁVEL")
+                print(
+                    f"Analista: {nome}"
+                )
+                print(
+                    f"Mínimo: {minimo}"
+                )
+                print(
+                    f"Máximo: {maximo}"
+                )
+                print(
+                    "O mínimo semanal é maior "
+                    "que o máximo."
+                )
+                print("==========================================")
 
                 return False
 
+            # ==================================================
+            # DIAS POSSÍVEIS
+            # ==================================================
+
+            dias_possiveis = []
+
+            for dia in self.dias:
+
+                possui_horario = False
+
+                for inicio, fim in self.horarios:
+
+                    # ------------------------------------------
+                    # HORÁRIO
+                    # ------------------------------------------
+
+                    if not self.horario_compativel(
+                        analista,
+                        inicio,
+                        fim
+                    ):
+
+                        continue
+
+                    # ------------------------------------------
+                    # INDISPONIBILIDADE
+                    # ------------------------------------------
+
+                    if not self.horario_disponivel(
+                        analista,
+                        inicio,
+                        fim
+                    ):
+
+                        continue
+
+                    possui_horario = True
+
+                    break
+
+                if possui_horario:
+
+                    dias_possiveis.append(
+                        dia
+                    )
+
+            # --------------------------------------------------
+            # NÃO POSSUI DIAS SUFICIENTES
+            # --------------------------------------------------
+
+            if len(dias_possiveis) < minimo:
+
+                print()
+                print("==========================================")
+                print("ESCALA INVIÁVEL")
+                print(
+                    f"Analista: {nome}"
+                )
+                print(
+                    f"Mínimo necessário: "
+                    f"{minimo}"
+                )
+                print(
+                    f"Dias possíveis: "
+                    f"{len(dias_possiveis)}"
+                )
+                print(
+                    f"Dias disponíveis: "
+                    f"{dias_possiveis}"
+                )
+                print(
+                    "O analista não possui dias "
+                    "suficientes para atingir "
+                    "o mínimo."
+                )
+                print("==========================================")
+
+                return False
+
+            # ==================================================
+            # DIAS ALTERNADOS
+            # ==================================================
+
+            max_dias_alternados = (
+                self.calcular_max_dias_alternados(
+                    dias_possiveis
+                )
+            )
+
+            if max_dias_alternados < minimo:
+
+                print(
+                    f"Atenção: {nome} precisa de "
+                    f"{minimo} dias, mas possui "
+                    f"apenas {max_dias_alternados} "
+                    f"dias possíveis sem consecutivos."
+                )
+
+                print(
+                    "A Fase 2 poderá permitir "
+                    "dias consecutivos."
+                )
+
         return True
+
+    # ==========================================================
+    # CALCULAR MÁXIMO DE DIAS ALTERNADOS
+    #
+    # Exemplo:
+    #
+    # Dias possíveis:
+    #
+    # 1, 2, 3, 4, 5
+    #
+    # Máximo sem consecutivos:
+    #
+    # 1, 3, 5 = 3
+    #
+    # ==========================================================
+
+    def calcular_max_dias_alternados(
+        self,
+        dias_possiveis
+    ):
+
+        if not dias_possiveis:
+
+            return 0
+
+        indices = sorted(
+            self.obter_indice_dia(dia)
+            for dia in dias_possiveis
+            if self.obter_indice_dia(dia) is not None
+        )
+
+        if not indices:
+
+            return 0
+
+        # ------------------------------------------------------
+        # PROGRAMAÇÃO DINÂMICA
+        #
+        # dp[i] = maior quantidade de dias alternados
+        # até o índice i.
+        # ------------------------------------------------------
+
+        dp = [1] * len(indices)
+
+        for i in range(len(indices)):
+
+            for j in range(i):
+
+                if indices[i] > indices[j] + 1:
+
+                    dp[i] = max(
+                        dp[i],
+                        dp[j] + 1
+                    )
+
+        maximo = max(dp)
+
+        # ------------------------------------------------------
+        # LIMITE TEÓRICO
+        # ------------------------------------------------------
+
+        limite_teorico = (
+            len(self.dias) + 1
+        ) // 2
+
+        return min(
+            maximo,
+            limite_teorico
+        )
 
     # ==========================================================
     # CONVERTER HH:MM PARA MINUTOS
@@ -474,14 +1304,14 @@ class GeradorEscala:
 
         horas, minutos = map(
             int,
-            hora.split(":")
+            str(hora).split(":")
         )
 
         return horas * 60 + minutos
 
 
 # ==============================================================
-# FUNÇÃO SIMPLIFICADA PARA USAR NA TELA PRINCIPAL
+# FUNÇÃO SIMPLIFICADA PARA A TELA PRINCIPAL
 # ==============================================================
 
 def gerar_escala(
@@ -496,4 +1326,9 @@ def gerar_escala(
         horarios
     )
 
-    return gerador.gerar()
+    return gerador.gerar(
+        limite_segundos=5
+    )
+
+
+
